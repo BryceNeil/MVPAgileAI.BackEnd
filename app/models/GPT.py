@@ -19,30 +19,30 @@ class GPT:
     @classmethod
     async def get_streamed_response(cls, answer: str, question_id: UUID):
         # Uncomment when you want to use GPT for real
-        # openai_stream = await openai.ChatCompletion.acreate(
-        #     model=GPT_MODEL,
-        #     messages=[
-        #         {
-        #             "role": "user",
-        #             "content": await cls.get_prompt(answer, question_id)
-        #         }
-        #     ],
-        #     temperature=GPT_TEMPERATURE,
-        #     stream=True
-        # )
-        # async for event in openai_stream:
-        #     if "content" in event["choices"][0].delta:
-        #         yield event["choices"][0].delta.content
+        openai_stream = await openai.ChatCompletion.acreate(
+            model=GPT_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": await cls.get_prompt(answer, question_id)
+                }
+            ],
+            temperature=GPT_TEMPERATURE,
+            stream=True
+        )
+        async for event in openai_stream:
+            if "content" in event["choices"][0].delta:
+                yield event["choices"][0].delta.content
 
         # The code block below is useful for debugging the Frontend. It provides
         # A streamed response similar to the type that would be seen from the OpenAI call
         # Comment out the below code when you uncomment the above
 
-        t = ['really long text', ' really long text', ' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text']
-        open_ai_stream = (o for o in t + t + t + t + t + t + t)
-        for chunk in open_ai_stream:
-            await asyncio.sleep(0.25)
-            yield chunk
+        # t = ['really long text', ' really long text', ' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text']
+        # open_ai_stream = (o for o in t + t + t + t + t + t + t)
+        # for chunk in open_ai_stream:
+        #     await asyncio.sleep(0.25)
+        #     yield chunk
 
     async def get_prompt(answer: str, question_id: UUID) -> str:
         case_question_info = await db.fetch_one(

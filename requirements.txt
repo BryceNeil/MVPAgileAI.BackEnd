@@ -1,0 +1,9 @@
+databases
+fastapi
+databases[postgresql]
+python-jose
+passlib
+openai
+python-dotenv
+asyncpg
+psycopg2
