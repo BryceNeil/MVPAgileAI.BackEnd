@@ -1,7 +1,12 @@
 import asyncio
+import httpx
+
+import io
+import openai
+
 from uuid import UUID
 
-import openai
+from pydub import AudioSegment
 
 from app.data.db import db
 from app.misc.constants import SECRETS, GPT_TEMPERATURE, GPT_MODEL
@@ -15,34 +20,65 @@ INITIAL_PROMPT = """
 """
 
 openai.api_key = SECRETS.OPENAI_KEY
+client = openai.OpenAI(api_key=openai.api_key)
+
 class GPT:
     @classmethod
     async def get_streamed_response(cls, answer: str, question_id: UUID):
         # Uncomment when you want to use GPT for real
-        openai_stream = await openai.ChatCompletion.acreate(
-            model=GPT_MODEL,
-            messages=[
-                {
-                    "role": "user",
-                    "content": await cls.get_prompt(answer, question_id)
-                }
-            ],
-            temperature=GPT_TEMPERATURE,
-            stream=True
-        )
-        async for event in openai_stream:
-            if "content" in event["choices"][0].delta:
-                yield event["choices"][0].delta.content
+        # openai_stream = await openai.ChatCompletion.acreate(
+        #     model=GPT_MODEL,
+        #     messages=[
+        #         {
+        #             "role": "user",
+        #             "content": await cls.get_prompt(answer, question_id)
+        #         }
+        #     ],
+        #     temperature=GPT_TEMPERATURE,
+        #     stream=True
+        # )
+        # async for event in openai_stream:
+        #     if "content" in event["choices"][0].delta:
+        #         yield event["choices"][0].delta.content
 
         # The code block below is useful for debugging the Frontend. It provides
         # A streamed response similar to the type that would be seen from the OpenAI call
         # Comment out the below code when you uncomment the above
 
-        # t = ['really long text', ' really long text', ' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text']
-        # open_ai_stream = (o for o in t + t + t + t + t + t + t)
-        # for chunk in open_ai_stream:
-        #     await asyncio.sleep(0.25)
-        #     yield chunk
+        t = ['really long text', ' really long text', ' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text']
+        open_ai_stream = (o for o in t + t + t + t + t + t + t)
+        for chunk in open_ai_stream:
+            await asyncio.sleep(0.25)
+            yield chunk
+
+
+    @classmethod
+    async def gpt_audio_bytes(cls, text: str):
+        print("DEBUG HITS")
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=text,
+        )
+
+        # Convert the binary response content to a byte stream
+        byte_stream = io.BytesIO(response.content)
+
+        # Read the audio data from the byte stream
+        audio = AudioSegment.from_file(byte_stream, format="mp3")
+
+        # Convert the audio to bytes
+        audio_bytes = io.BytesIO()
+        audio.export(audio_bytes, format="mp3")
+
+        # Reset the pointer to the beginning of the IO object
+        audio_bytes.seek(0)
+
+        return audio_bytes
+
+
+
+
 
     async def get_prompt(answer: str, question_id: UUID) -> str:
         case_question_info = await db.fetch_one(

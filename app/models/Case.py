@@ -4,6 +4,7 @@ from uuid import UUID
 from app.data.db import db
 from app.models.GPT import GPT
 from app.schemas.Case import CaseOutline, CaseQuestion, Answer
+from app.misc.constants import SECRETS
 
 
 class Case:
@@ -55,8 +56,6 @@ class Case:
             chat_history.append({"from": "user", "text": user_chat})
             chat_history.append({"from": "computer", "text": gpt_chat})
         return chat_history
-
-
 
 
 """QUERIES"""
