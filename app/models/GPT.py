@@ -60,6 +60,7 @@ class GPT:
             voice="alloy",
             input=text,
         )
+        print("DEBUG TEXT:", text)
 
         # Convert the binary response content to a byte stream
         byte_stream = io.BytesIO(response.content)
