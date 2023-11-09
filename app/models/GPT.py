@@ -1,7 +1,14 @@
 import asyncio
+import httpx
+
+import io
+import openai
+
+from fastapi import UploadFile
+
 from uuid import UUID
 
-import openai
+from pydub import AudioSegment
 
 from app.data.db import db
 from app.misc.constants import SECRETS, GPT_TEMPERATURE, GPT_MODEL
@@ -15,6 +22,8 @@ INITIAL_PROMPT = """
 """
 
 openai.api_key = SECRETS.OPENAI_KEY
+client = openai.OpenAI(api_key=openai.api_key)
+
 class GPT:
     @classmethod
     async def get_streamed_response(cls, answer: str, question_id: UUID):
@@ -43,6 +52,52 @@ class GPT:
         for chunk in open_ai_stream:
             await asyncio.sleep(0.25)
             yield chunk
+
+
+    # Text to speech
+    @classmethod
+    async def gpt_audio_bytes(cls, text: str):
+        print("DEBUG HITS")
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=text,
+        )
+        print("DEBUG TEXT:", text)
+
+        # Convert the binary response content to a byte stream
+        byte_stream = io.BytesIO(response.content)
+
+        # Read the audio data from the byte stream
+        audio = AudioSegment.from_file(byte_stream, format="mp3")
+
+        # Convert the audio to bytes
+        audio_bytes = io.BytesIO()
+        audio.export(audio_bytes, format="mp3")
+
+        # Reset the pointer to the beginning of the IO object
+        audio_bytes.seek(0)
+
+        return audio_bytes
+
+    # Speech to text
+    @classmethod
+    async def get_transcription(cls, file: UploadFile):
+        print("FILENAME: ", file)
+        print("DEBUG 1 Tran")
+        audio_bytes = await file.read()
+        print("DEBUG 2 Tran")
+        audio_stream = io.BytesIO(audio_bytes)
+        print("DEBUG 3 Tran")
+        transcript = client.audio.transcriptions.create(
+            model="whisper-1", 
+            file=audio_stream, 
+            response_format="text"
+        )
+        print("DEBUG 4 Tran")
+        return transcript["data"]["text"]
+
+
 
     async def get_prompt(answer: str, question_id: UUID) -> str:
         case_question_info = await db.fetch_one(

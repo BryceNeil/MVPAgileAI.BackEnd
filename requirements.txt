@@ -1,0 +1,14 @@
+databases
+fastapi
+databases[postgresql]
+python-jose
+passlib
+openai
+python-dotenv
+asyncpg
+psycopg2
+google-cloud-texttospeech
+httpcore
+httpx
+python-multipart
+pydub

@@ -1,9 +1,10 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Form, UploadFile, File
 from fastapi.responses import StreamingResponse
 
 from app.misc.utils import get_profile, validate_token, User as UserProfile
 from app.models.Case import Case 
+from app.models.GPT import GPT
 from app.models.User import User 
 from app.schemas.Case import Answer
 from app.schemas.User import UserLoginData
@@ -37,6 +38,26 @@ async def get_chat_history(
     question_id: UUID, profile: UserProfile = Depends(get_profile)
 ):
     return await Case.get_chat_history(question_id, profile.user_id)
+
+# @content_router.get("/question/chat/audio")
+# async def get_chat_audio(): 
+#     return StreamingResponse(
+#         GPT.stream_tts_audio("sample input text"), media_type="audio/mpeg"
+#     )
+
+# TTS - text to speech
+@content_router.post("/chat/audio")
+async def synthesize_speech(text: str = Form(...)):
+    print("DEBUG HERE!!!!")
+    return StreamingResponse(
+        await GPT.gpt_audio_bytes(text), media_type="audio/mpeg"
+    )
+
+# STT - speech to text
+@content_router.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    print("DEBUG: in transcribe")
+    return await GPT.get_transcription(file)
 
 
 """AUTH ROUTES"""
