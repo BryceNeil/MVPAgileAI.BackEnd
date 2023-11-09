@@ -4,6 +4,8 @@ import httpx
 import io
 import openai
 
+from fastapi import UploadFile
+
 from uuid import UUID
 
 from pydub import AudioSegment
@@ -52,6 +54,7 @@ class GPT:
             yield chunk
 
 
+    # Text to speech
     @classmethod
     async def gpt_audio_bytes(cls, text: str):
         print("DEBUG HITS")
@@ -77,7 +80,22 @@ class GPT:
 
         return audio_bytes
 
-
+    # Speech to text
+    @classmethod
+    async def get_transcription(cls, file: UploadFile):
+        print("FILENAME: ", file)
+        print("DEBUG 1 Tran")
+        audio_bytes = await file.read()
+        print("DEBUG 2 Tran")
+        audio_stream = io.BytesIO(audio_bytes)
+        print("DEBUG 3 Tran")
+        transcript = client.audio.transcriptions.create(
+            model="whisper-1", 
+            file=audio_stream, 
+            response_format="text"
+        )
+        print("DEBUG 4 Tran")
+        return transcript["data"]["text"]
 
 
 

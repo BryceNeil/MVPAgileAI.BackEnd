@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, Form
+from fastapi import APIRouter, Depends, Form, UploadFile, File
 from fastapi.responses import StreamingResponse
 
 from app.misc.utils import get_profile, validate_token, User as UserProfile
@@ -45,7 +45,7 @@ async def get_chat_history(
 #         GPT.stream_tts_audio("sample input text"), media_type="audio/mpeg"
 #     )
 
-# trial 
+# TTS - text to speech
 @content_router.post("/chat/audio")
 async def synthesize_speech(text: str = Form(...)):
     print("DEBUG HERE!!!!")
@@ -53,7 +53,11 @@ async def synthesize_speech(text: str = Form(...)):
         await GPT.gpt_audio_bytes(text), media_type="audio/mpeg"
     )
 
-    
+# STT - speech to text
+@content_router.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    print("DEBUG: in transcribe")
+    return await GPT.get_transcription(file)
 
 
 """AUTH ROUTES"""
