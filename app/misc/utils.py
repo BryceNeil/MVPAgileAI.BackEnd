@@ -2,7 +2,7 @@ from datetime import timedelta, datetime
 import time
 from typing import Optional 
 from uuid import UUID 
-
+import hashlib
 from fastapi import HTTPException, Request, Depends, status
 from fastapi.security import (
     OAuth2PasswordBearer,
@@ -58,11 +58,28 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(raw_password: str):
-    return pwd_context.hash(raw_password)
+    md5_hash_object = hashlib.md5()
+
+    # Update the hash object with the input string
+    md5_hash_object.update(raw_password.encode('utf-8'))
+
+    # Get the hexadecimal representation of the hash
+    hashed_string = md5_hash_object.hexdigest()
+
+    return hashed_string
 
 
 def verify_password(raw_password: str, hashed_password: str):
-    return pwd_context.verify(raw_password, hashed_password)
+    md5_hash_object = hashlib.md5()
+
+    # Update the hash object with the input string
+    md5_hash_object.update(raw_password.encode('utf-8'))
+
+    # Get the hexadecimal representation of the hash
+    hashed_string = md5_hash_object.hexdigest()
+    if hashed_string == hashed_password:
+        return True
+    return False
 
 
 class Token:
