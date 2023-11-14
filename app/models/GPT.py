@@ -4,7 +4,7 @@ import httpx
 import io
 import openai
 
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 
 from uuid import UUID
 
@@ -25,6 +25,29 @@ openai.api_key = SECRETS.OPENAI_KEY
 client = openai.OpenAI(api_key=openai.api_key)
 
 class GPT:
+    @classmethod
+    async def get_new_case(cls, job_title):
+        print("DEBUG YOLO")
+        try:
+            # Running the synchronous OpenAI client in an async context using executor
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None, 
+                lambda: client.chat.completions.create(
+                    model="gpt-3.5-turbo-1106",
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
+                        {"role": "user", "content": f"Create a case interview scenario for the job title '{job_title}' with 5 questions. Each question should have a difficulty level and a set of relevant skills."}
+                    ]
+                )
+            )
+            print(response.choices[0].message.content)
+            return response  # The response is already a dictionary
+        except Exception as e:
+            print(f"GPT Error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     @classmethod
     async def get_streamed_response(cls, answer: str, question_id: UUID):
         # Uncomment when you want to use GPT for real

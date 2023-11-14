@@ -11,6 +11,16 @@ class Case:
     def __init__(self, case_id: UUID):
         self.case_id = case_id
 
+    # new case
+    @staticmethod
+    async def new_case(job_title):
+        # need to check if topic exists in DB first (get_case and get_questions functions)
+        # and then call GPT if it does not exist.
+        print("DEBUG in here 2,", job_title)
+        response = await GPT.get_new_case(job_title)  # Using await for async call
+        # need to save job info to database
+        return response
+        
     @staticmethod
     async def get_top_cases(limit: int = 5) -> List[CaseOutline]:
         return [

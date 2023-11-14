@@ -1,6 +1,7 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, Form, UploadFile, File
+from fastapi import APIRouter, Depends, Form, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.requests import Request
 
 from app.misc.utils import get_profile, validate_token, User as UserProfile
 from app.models.Case import Case 
@@ -58,6 +59,23 @@ async def synthesize_speech(text: str = Form(...)):
 async def transcribe_audio(file: UploadFile = File(...)):
     print("DEBUG: in transcribe")
     return await GPT.get_transcription(file)
+
+# Creating new case 
+@content_router.post("/create/case")
+async def create_case(request: Request):
+    try:
+        # Extract job title from request body
+        job_title = await request.body()
+        job_title = job_title.decode('utf-8')  # Decode bytes to string
+
+        print("DEBUG: Received job title, processing new case...")  # Debug print statement
+        
+        # Pass job title to the Case.new_case method
+        response = await Case.new_case(job_title)
+        print("DEBUG: new_case method returned successfully.", response)  # Print after successful execution
+        return response 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 """AUTH ROUTES"""
