@@ -4,6 +4,8 @@ import httpx
 import io
 import openai
 
+from openai import AsyncOpenAI
+
 from fastapi import UploadFile, HTTPException
 
 from uuid import UUID
@@ -21,60 +23,71 @@ INITIAL_PROMPT = """
 
 """
 
-openai.api_key = SECRETS.OPENAI_KEY
-client = openai.OpenAI(api_key=openai.api_key)
+client = AsyncOpenAI(api_key=SECRETS.OPENAI_KEY)
 
 class GPT:
     @classmethod
     async def get_new_case(cls, job_title):
-        print("DEBUG YOLO")
         try:
-            # Running the synchronous OpenAI client in an async context using executor
-            loop = asyncio.get_running_loop()
-            response = await loop.run_in_executor(
-                None, 
-                lambda: client.chat.completions.create(
-                    model="gpt-3.5-turbo-1106",
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
-                        {"role": "user", "content": f"Create a case interview scenario for the job title '{job_title}' with 5 questions. Each question should have a difficulty level and a set of relevant skills."}
-                    ]
-                )
+            prompt = (
+                f"Create a structured JSON response for a case interview scenario "
+                f"for the job title '{job_title}'. The JSON structure should include:\n"
+                f"- 'jobTitle' as a string,\n"
+                f"- 'scenario' as a detailed case description,\n"
+                f"- 'questions' 5 of them as a list of dictionaries. "
+                f"Each dictionary in the list should have keys 'questionNumber', 'question', "
+                f"'difficultyLevel', 'relevantSkills', 'rubric' (in the structure outlined below), and the 'framework' dictiionary (in the structure outlined below). "
+                f"Format the questions as 'questionNumber': 1, 'question': '<question_text>', "
+                f"'difficultyLevel': '<level>', 'relevantSkills': ['<skill1>', '<skill2>']."
+                f"- 'rubric': a list of grading criteria, each as a dictionary with 'criterion', 'description', "
+                f"and 'weight'.\n"
+                f"- 'framework': a dictionary with the following keys:\n"
+                f"  'overview': a brief description of the overall problem-solving approach,\n"
+                f"  'steps': a list of specific, ordered steps for approaching the problem, each step as a dictionary "
+                f"with 'stepNumber', 'description', and 'details'.\n"
+                f"Ensure the scenario, questions, rubric, and framework are detailed, realistic, and aligned "
+                f"with real-world complexities."
             )
-            print(response.choices[0].message.content)
-            return response  # The response is already a dictionary
+            response = await client.chat.completions.create(
+                model=GPT_MODEL,
+                response_format={ "type": "json_object" },
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant designed to output structured JSON."},
+                    {"role": "user", "content": prompt}    
+                ]
+            )
+            return response.choices[0].message.content
         except Exception as e:
             print(f"GPT Error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @classmethod
     async def get_streamed_response(cls, answer: str, question_id: UUID):
-        # Uncomment when you want to use GPT for real
-        # openai_stream = await openai.ChatCompletion.acreate(
-        #     model=GPT_MODEL,
-        #     messages=[
-        #         {
-        #             "role": "user",
-        #             "content": await cls.get_prompt(answer, question_id)
-        #         }
-        #     ],
-        #     temperature=GPT_TEMPERATURE,
-        #     stream=True
-        # )
-        # async for event in openai_stream:
-        #     if "content" in event["choices"][0].delta:
-        #         yield event["choices"][0].delta.content
+        try:
+            openai_stream = await client.chat.completions.create(
+                model=GPT_MODEL,
+                messages=[
+                    {"role": "user", "content": await cls.get_prompt(answer, question_id)}
+                ],
+                temperature=GPT_TEMPERATURE,
+                stream=True
+            )
+            async for event in openai_stream:
+                if "content" in event['choices'][0]:
+                    yield event['choices'][0]['content']
+        except Exception as e:
+            print(f"GPT Error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
         # The code block below is useful for debugging the Frontend. It provides
         # A streamed response similar to the type that would be seen from the OpenAI call
         # Comment out the below code when you uncomment the above
 
-        t = ['really long text', ' really long text', ' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text']
-        open_ai_stream = (o for o in t + t + t + t + t + t + t)
-        for chunk in open_ai_stream:
-            await asyncio.sleep(0.25)
-            yield chunk
+        # t = ['really long text', ' really long text', ' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text']
+        # open_ai_stream = (o for o in t + t + t + t + t + t + t)
+        # for chunk in open_ai_stream:
+        #     await asyncio.sleep(0.25)
+        #     yield chunk
 
 
     # Text to speech
