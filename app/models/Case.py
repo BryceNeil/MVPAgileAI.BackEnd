@@ -46,15 +46,15 @@ class Case:
             'a': answer.answer
         }
         qa_pin = await db.execute(INSERT_Q_ANSWER, params)
-        async for chunk in GPT.get_streamed_response(
-            answer.answer, answer.questionId
-        ):
+
+        # Use async for to iterate over the streamed response
+        async for chunk in GPT.get_streamed_response(answer.answer, answer.questionId):
             params = {
                 'g': chunk, 'qa_pin': qa_pin
             }
             await db.execute(INSERT_Q_GRADE_INCREMENTAL, params)
             yield "data: " + chunk + "\n\n"
-    
+
     @staticmethod
     async def get_chat_history(question_id: UUID, user_id: UUID):
         chat_history = []

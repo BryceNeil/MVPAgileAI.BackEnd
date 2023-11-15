@@ -64,20 +64,42 @@ class GPT:
     @classmethod
     async def get_streamed_response(cls, answer: str, question_id: UUID):
         try:
+            # Generate the prompt
+            prompt = await cls.get_prompt(answer, question_id)
+            print("Prompt: ", prompt)
+
+            # Start the stream
             openai_stream = await client.chat.completions.create(
-                model=GPT_MODEL,
+                model="gpt-4-1106-preview",
                 messages=[
-                    {"role": "user", "content": await cls.get_prompt(answer, question_id)}
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
                 ],
-                temperature=GPT_TEMPERATURE,
                 stream=True
             )
-            async for event in openai_stream:
-                if "content" in event['choices'][0]:
-                    yield event['choices'][0]['content']
+
+            # Iterate over the stream asynchronously
+            async for chunk in openai_stream:
+                print("Stream Chunk Received: ", chunk)
+                
+                # Checking if 'choices' exists in the chunk and is not empty
+                if chunk.choices:
+                    first_choice = chunk.choices[0]
+
+                    # Checking if 'delta' exists in the first choice
+                    if hasattr(first_choice, 'delta') and first_choice.delta:
+                        delta = first_choice.delta
+
+                        # Checking if 'content' exists in delta
+                        if hasattr(delta, 'content') and delta.content:
+                            print("Chunk Content: ", delta.content)
+                            yield delta.content
+
+
         except Exception as e:
             print(f"GPT Error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
 
         # The code block below is useful for debugging the Frontend. It provides
         # A streamed response similar to the type that would be seen from the OpenAI call
