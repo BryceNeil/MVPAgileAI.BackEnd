@@ -13,7 +13,7 @@ class User:
     @classmethod
     async def create_user(cls, login_info: UserLoginData):
         try: 
-            #CHANGED THE HASH_PASSWORD() TO use MD5, WAS HAVING ISSUES
+            #CHANGED THE HASH_PASSWORD() TO use MD5, WAS HAVING Troubles
             hashed_pw = hash_password(login_info.password)
             params = {'email': login_info.email, 'password': hashed_pw}
             await db.execute(INSERT_USER, params)
@@ -25,7 +25,7 @@ class User:
 
     @classmethod
     async def login(cls, login_info: UserLoginData):
-        params ={'email': login_info.email, 'password': hash_password(login_info.password)}
+        params ={'email': login_info.email}
         if not (user := await db.fetch_one(GET_USER, params)):
             msg = 'User does not exist'
             raise HTTPException(status_code=404, detail=msg)
@@ -36,6 +36,9 @@ class User:
                     'email': user.email
                 }
             ) 
+        else:
+            msg = 'Incorrect Password'
+            raise HTTPException(status_code=404, detail=msg)
 
 
 INSERT_USER = """
@@ -47,5 +50,5 @@ INSERT_USER = """
 GET_USER = """
     SELECT user_id, email, password
     FROM individual.account
-    WHERE email = :email AND password = :password
+    WHERE email = :email
 """
