@@ -1,0 +1,22 @@
+See the test.py file in this directory for the issue:
+    My output was - 
+    Failed to connect to the AWS RDS database with databases library: [Errno 11001] getaddrinfo failed
+    Connection to the AWS RDS database successful with psycopg2!
+    Connection to the Railway database successful with databases library!       
+
+The URL for the AWS RDS server is not able to be be accessed through the databases library in the same form as the offline version 
+    'postgres://postgres:123456@127.0.0.1:5432/aa' 
+which was definetly working.
+
+getattrinfo seems to be the troublemaker.
+
+managed to get the EC2 backend box to run and startup using the railway postgres database so can rule that out as the problem. 
+BTW- ask bryce or I to send you the key pair .pem file and you can get into the EC2 box with this command: 
+    'ssh -i "backend_key.pem" ubuntu@ec2-184-72-209-168.compute-1.amazonaws.com'
+
+In there we just ran the usual uvicorn command except I added some stuff to make it accessible to any address like so:
+        uvicorn main:app --reload --env-file=.env --host 0.0.0.0 --port 8000
+But once your in you can do whatever, just changes need to be made on local machine -> push to repo -> go to the remote ec2 and 'git pull'
+
+
+Possible the URL issue is something with the DNS or just a wrong URL. Little to no documentation on the databases library I could find online.

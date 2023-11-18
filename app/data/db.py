@@ -1,4 +1,4 @@
 import databases 
 
 
-db = databases.Database(url="postgres://postgres:d-D12afG1gcgaFFF5dfE2GeGfCgabgC*@monorail.proxy.rlwy.net:11514/aa")
+db = databases.Database(url="postgres://postgres:#gile4444@aa.cect20az9tah.us-east-1.rds.amazonaws.com:5432/aa")
