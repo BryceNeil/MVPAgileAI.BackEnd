@@ -1,5 +1,4 @@
 from uuid import UUID
-
 from fastapi import HTTPException
 
 from app.data.db import db
@@ -14,8 +13,9 @@ class User:
     @classmethod
     async def create_user(cls, login_info: UserLoginData):
         try: 
+            #CHANGED THE HASH_PASSWORD() TO use MD5, WAS HAVING Troubles
             hashed_pw = hash_password(login_info.password)
-            params = {'email': login_info.email, 'pw': hashed_pw}
+            params = {'email': login_info.email, 'password': hashed_pw}
             await db.execute(INSERT_USER, params)
         except Exception as exc:
             msg, code = 'Something went wrong creating a user', 400
@@ -36,12 +36,15 @@ class User:
                     'email': user.email
                 }
             ) 
+        else:
+            msg = 'Incorrect Password'
+            raise HTTPException(status_code=404, detail=msg)
 
 
 INSERT_USER = """
     INSERT INTO individual.account 
     (email, password)
-    VALUES (:email, :pw)
+    VALUES (:email, :password)
 """
 
 GET_USER = """
