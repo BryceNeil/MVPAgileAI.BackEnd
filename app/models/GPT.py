@@ -15,6 +15,7 @@ from pydub import AudioSegment
 from app.data.db import db
 from app.misc.constants import SECRETS, GPT_TEMPERATURE, GPT_MODEL
 
+# need to feed in the case and given question here. 
 INITIAL_PROMPT = """
     You are a highly skilled and detail-orientied management consultant who has worked at top firms such as McKinsey, Bain, and BCG.
     You have been given the following case {{CASE_DETAILS}}.
@@ -64,7 +65,8 @@ class GPT:
     @classmethod
     async def get_streamed_response(cls, answer: str, question_id: UUID):
         try:
-            # Generate the prompt
+            # Generate the prompt - this is where DATA SCIENCE ERROR COMES FROM
+            
             prompt = await cls.get_prompt(answer, question_id)
             print("Prompt: ", prompt)
 

@@ -58,13 +58,17 @@ class Case:
     @staticmethod
     async def get_chat_history(question_id: UUID, user_id: UUID):
         chat_history = []
-        params = {'qid': question_id, 'uid': user_id}
-        qas = await db.fetch_all(GET_CHAT_HISTORY, params)
-        for qa in qas:
-            user_chat = qa.answer
-            gpt_chat = qa.grade
-            chat_history.append({"from": "user", "text": user_chat})
-            chat_history.append({"from": "computer", "text": gpt_chat})
+
+        # TODO: need to modify this for chat history
+
+        # params = {'qid': question_id, 'uid': user_id}
+        # qas = await db.fetch_all(GET_CHAT_HISTORY, params)
+        # for qa in qas:
+        #     user_chat = qa.answer
+        #     gpt_chat = qa.grade
+        #     chat_history.append({"from": "user", "text": user_chat})
+        #     chat_history.append({"from": "computer", "text": gpt_chat})
+        
         return chat_history
 
 
