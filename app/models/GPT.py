@@ -4,7 +4,9 @@ import httpx
 import io
 import openai
 
-from fastapi import UploadFile
+from openai import AsyncOpenAI
+
+from fastapi import UploadFile, HTTPException
 
 from uuid import UUID
 
@@ -13,6 +15,7 @@ from pydub import AudioSegment
 from app.data.db import db
 from app.misc.constants import SECRETS, GPT_TEMPERATURE, GPT_MODEL
 
+# need to feed in the case and given question here. 
 INITIAL_PROMPT = """
     You are a highly skilled and detail-orientied management consultant who has worked at top firms such as McKinsey, Bain, and BCG.
     You have been given the following case {{CASE_DETAILS}}.
@@ -21,37 +24,93 @@ INITIAL_PROMPT = """
 
 """
 
-openai.api_key = SECRETS.OPENAI_KEY
-client = openai.OpenAI(api_key=openai.api_key)
+client = AsyncOpenAI(api_key=SECRETS.OPENAI_KEY)
 
 class GPT:
     @classmethod
+    async def get_new_case(cls, job_title):
+        try:
+            prompt = (
+                f"Create a structured JSON response for a case interview scenario "
+                f"for the job title '{job_title}'. The JSON structure should include:\n"
+                f"- 'jobTitle' as a string,\n"
+                f"- 'scenario' as a detailed case description,\n"
+                f"- 'questions' 5 of them as a list of dictionaries. "
+                f"Each dictionary in the list should have keys 'questionNumber', 'question', "
+                f"'difficultyLevel', 'relevantSkills', 'rubric' (in the structure outlined below), and the 'framework' dictiionary (in the structure outlined below). "
+                f"Format the questions as 'questionNumber': 1, 'question': '<question_text>', "
+                f"'difficultyLevel': '<level>', 'relevantSkills': ['<skill1>', '<skill2>']."
+                f"- 'rubric': a list of grading criteria, each as a dictionary with 'criterion', 'description', "
+                f"and 'weight'.\n"
+                f"- 'framework': a dictionary with the following keys:\n"
+                f"  'overview': a brief description of the overall problem-solving approach,\n"
+                f"  'steps': a list of specific, ordered steps for approaching the problem, each step as a dictionary "
+                f"with 'stepNumber', 'description', and 'details'.\n"
+                f"Ensure the scenario, questions, rubric, and framework are detailed, realistic, and aligned "
+                f"with real-world complexities."
+            )
+            response = await client.chat.completions.create(
+                model=GPT_MODEL,
+                response_format={ "type": "json_object" },
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant designed to output structured JSON."},
+                    {"role": "user", "content": prompt}    
+                ]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"GPT Error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @classmethod
     async def get_streamed_response(cls, answer: str, question_id: UUID):
-        # Uncomment when you want to use GPT for real
-        # openai_stream = await openai.ChatCompletion.acreate(
-        #     model=GPT_MODEL,
-        #     messages=[
-        #         {
-        #             "role": "user",
-        #             "content": await cls.get_prompt(answer, question_id)
-        #         }
-        #     ],
-        #     temperature=GPT_TEMPERATURE,
-        #     stream=True
-        # )
-        # async for event in openai_stream:
-        #     if "content" in event["choices"][0].delta:
-        #         yield event["choices"][0].delta.content
+        try:
+            # Generate the prompt - this is where DATA SCIENCE ERROR COMES FROM
+            
+            prompt = await cls.get_prompt(answer, question_id)
+            print("Prompt: ", prompt)
+
+
+            # Start the stream
+            openai_stream = await client.chat.completions.create(
+                model="gpt-4-1106-preview",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                stream=True
+            )
+
+            # Iterate over the stream asynchronously
+            async for chunk in openai_stream:
+                
+                # Checking if 'choices' exists in the chunk and is not empty
+                if chunk.choices:
+                    first_choice = chunk.choices[0]
+
+                    # Checking if 'delta' exists in the first choice
+                    if hasattr(first_choice, 'delta') and first_choice.delta:
+                        delta = first_choice.delta
+
+                        # Checking if 'content' exists in delta
+                        if hasattr(delta, 'content') and delta.content:
+                            yield delta.content
+
+
+        except Exception as e:
+            print(f"GPT Error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
 
         # The code block below is useful for debugging the Frontend. It provides
         # A streamed response similar to the type that would be seen from the OpenAI call
         # Comment out the below code when you uncomment the above
 
-        t = ['really long text', ' really long text', ' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text']
-        open_ai_stream = (o for o in t + t + t + t + t + t + t)
-        for chunk in open_ai_stream:
-            await asyncio.sleep(0.25)
-            yield chunk
+        # t = ['really long text', ' really long text', ' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text']
+        # open_ai_stream = (o for o in t + t + t + t + t + t + t)
+        # for chunk in open_ai_stream:
+        #     await asyncio.sleep(0.25)
+        #     yield chunk
 
 
     # Text to speech

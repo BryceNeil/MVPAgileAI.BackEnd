@@ -1,3 +1,4 @@
+from http.client import HTTPException
 from typing import List
 from uuid import UUID
 
@@ -11,6 +12,16 @@ class Case:
     def __init__(self, case_id: UUID):
         self.case_id = case_id
 
+    # new case
+    @staticmethod
+    async def new_case(job_title):
+        # need to check if topic exists in DB first (get_case and get_questions functions)
+        # and then call GPT if it does not exist.
+        print("DEBUG in here 2,", job_title)
+        response = await GPT.get_new_case(job_title)  # Using await for async call
+        # need to save job info to database
+        return response
+        
     @staticmethod
     async def get_top_cases(limit: int = 5) -> List[CaseOutline]:
         return [
@@ -29,6 +40,27 @@ class Case:
                 GET_CASE_QUESTIONS, {'cid': self.case_id, 'page': page}
             )
         ]
+    
+    async def enter_new_case(caseData):
+        try: 
+            params = {'title': caseData.get("jobTitle"), 'description': caseData.get("scenario")}
+            cResult = await db.execute(INSERT_NEW_CASE, params)
+            questions = caseData.get("questions")
+            print("Before For")
+            qResult = []
+            for question in questions:
+                print("After For")
+                
+                paramsQuestion = {'case_id': cResult, 'title': question.get("question"), 'description': ''}
+ 
+                qResult.append(await db.execute(INSERT_NEW_QUESTION, paramsQuestion))
+            
+            return cResult, qResult
+        except Exception as exc:
+            msg, code = 'Something went wrong creating a user', 400
+            if 'already exists' in str(exc):
+                msg, code = 'User with that email already exists', 409
+            raise HTTPException(status_code=code, detail=msg)
 
     async def grade_answer(answer: Answer):
         params = {
@@ -36,25 +68,30 @@ class Case:
             'a': answer.answer
         }
         qa_pin = await db.execute(INSERT_Q_ANSWER, params)
-        async for chunk in GPT.get_streamed_response(
-            answer.answer, answer.questionId
-        ):
+
+
+        # Use async for to iterate over the streamed response
+        async for chunk in GPT.get_streamed_response(answer.answer, answer.questionId):
             params = {
                 'g': chunk, 'qa_pin': qa_pin
             }
             await db.execute(INSERT_Q_GRADE_INCREMENTAL, params)
             yield "data: " + chunk + "\n\n"
-    
+
     @staticmethod
     async def get_chat_history(question_id: UUID, user_id: UUID):
         chat_history = []
-        params = {'qid': question_id, 'uid': user_id}
-        qas = await db.fetch_all(GET_CHAT_HISTORY, params)
-        for qa in qas:
-            user_chat = qa.answer
-            gpt_chat = qa.grade
-            chat_history.append({"from": "user", "text": user_chat})
-            chat_history.append({"from": "computer", "text": gpt_chat})
+
+        # TODO: need to modify this for chat history
+
+        # params = {'qid': question_id, 'uid': user_id}
+        # qas = await db.fetch_all(GET_CHAT_HISTORY, params)
+        # for qa in qas:
+        #     user_chat = qa.answer
+        #     gpt_chat = qa.grade
+        #     chat_history.append({"from": "user", "text": user_chat})
+        #     chat_history.append({"from": "computer", "text": gpt_chat})
+        
         return chat_history
 
 
@@ -103,4 +140,18 @@ INSERT_Q_GRADE_INCREMENTAL = """
     UPDATE content.question_answer
     SET grade = COALESCE(grade || :g, :g)
     WHERE pin = :qa_pin 
+"""
+
+INSERT_NEW_CASE = """
+    INSERT INTO content.case 
+    (title, description)
+    VALUES (:title, :description)
+    RETURNING case_id
+"""
+
+INSERT_NEW_QUESTION = """
+    INSERT INTO content.question
+    (case_id, title, description)
+    VALUES (:case_id, :title, :description )
+    RETURNING question_id
 """

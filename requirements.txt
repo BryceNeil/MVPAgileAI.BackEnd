@@ -6,6 +6,7 @@ passlib
 openai
 python-dotenv
 asyncpg
+asyncio
 psycopg2
 google-cloud-texttospeech
 httpcore
