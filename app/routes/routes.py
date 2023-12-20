@@ -68,19 +68,28 @@ async def create_case(request: Request):
         job_title = await request.body()
         job_title = job_title.decode('utf-8')  # Decode bytes to string
 
-        print("DEBUG: Received job title, processing new case...")  # Debug print statement
+        print("recieved: ", job_title)
         
         # Pass job title to the Case.new_case method
         response = await Case.new_case(job_title)
-        print("DEBUG: new_case method returned successfully.", response)  # Print after successful execution
+        # print("DEBUG: new_case method returned successfully.", response)  # Print after successful execution
         return response 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@content_router.post("/enter/case")
+async def enter_case(request: Request):
+    try:
+        case_data = await request.json()  # Retrieve JSON data from the request body
+        # print("Received case data:", case_data.get("jobTitle"))
+        resp_data = await Case.enter_new_case(case_data)
+        print(resp_data)
+        return resp_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 """AUTH ROUTES"""
-
-
 auth_router = APIRouter(prefix="/api/auth")
 
 

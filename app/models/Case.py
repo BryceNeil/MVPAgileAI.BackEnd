@@ -1,3 +1,4 @@
+from http.client import HTTPException
 from typing import List
 from uuid import UUID
 
@@ -39,6 +40,27 @@ class Case:
                 GET_CASE_QUESTIONS, {'cid': self.case_id, 'page': page}
             )
         ]
+    
+    async def enter_new_case(caseData):
+        try: 
+            params = {'title': caseData.get("jobTitle"), 'description': caseData.get("scenario")}
+            cResult = await db.execute(INSERT_NEW_CASE, params)
+            questions = caseData.get("questions")
+            print("Before For")
+            qResult = []
+            for question in questions:
+                print("After For")
+                
+                paramsQuestion = {'case_id': cResult, 'title': question.get("question"), 'description': ''}
+ 
+                qResult.append(await db.execute(INSERT_NEW_QUESTION, paramsQuestion))
+            
+            return cResult, qResult
+        except Exception as exc:
+            msg, code = 'Something went wrong creating a user', 400
+            if 'already exists' in str(exc):
+                msg, code = 'User with that email already exists', 409
+            raise HTTPException(status_code=code, detail=msg)
 
     async def grade_answer(answer: Answer):
         params = {
@@ -46,6 +68,7 @@ class Case:
             'a': answer.answer
         }
         qa_pin = await db.execute(INSERT_Q_ANSWER, params)
+
 
         # Use async for to iterate over the streamed response
         async for chunk in GPT.get_streamed_response(answer.answer, answer.questionId):
@@ -117,4 +140,18 @@ INSERT_Q_GRADE_INCREMENTAL = """
     UPDATE content.question_answer
     SET grade = COALESCE(grade || :g, :g)
     WHERE pin = :qa_pin 
+"""
+
+INSERT_NEW_CASE = """
+    INSERT INTO content.case 
+    (title, description)
+    VALUES (:title, :description)
+    RETURNING case_id
+"""
+
+INSERT_NEW_QUESTION = """
+    INSERT INTO content.question
+    (case_id, title, description)
+    VALUES (:case_id, :title, :description )
+    RETURNING question_id
 """

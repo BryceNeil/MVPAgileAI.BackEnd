@@ -70,6 +70,7 @@ class GPT:
             prompt = await cls.get_prompt(answer, question_id)
             print("Prompt: ", prompt)
 
+
             # Start the stream
             openai_stream = await client.chat.completions.create(
                 model="gpt-4-1106-preview",
@@ -82,7 +83,6 @@ class GPT:
 
             # Iterate over the stream asynchronously
             async for chunk in openai_stream:
-                print("Stream Chunk Received: ", chunk)
                 
                 # Checking if 'choices' exists in the chunk and is not empty
                 if chunk.choices:
@@ -94,7 +94,6 @@ class GPT:
 
                         # Checking if 'content' exists in delta
                         if hasattr(delta, 'content') and delta.content:
-                            print("Chunk Content: ", delta.content)
                             yield delta.content
 
 
