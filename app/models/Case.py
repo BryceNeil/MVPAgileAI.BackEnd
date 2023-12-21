@@ -78,31 +78,56 @@ class Case:
             await db.execute(INSERT_Q_GRADE_INCREMENTAL, params)
             yield "data: " + chunk + "\n\n"
 
+    async def conversation(answer: Answer):
+        params = {
+            'qid': answer.questionId, 'uid': answer.userId, 
+            'message': answer.answer
+        }
+        
+        mid = await db.execute(INSERT_MESSAGE, params)
+
+        gpt_generated_message = ""
+        async for chunk in GPT.get_streamed_response(answer.answer, answer.questionId):
+            print(chunk)
+            gpt_generated_message += chunk
+            yield "data: " + chunk + "\n\n"
+
+        print(gpt_generated_message)
+        await db.execute(INSERT_GPT_MESSAGE, {
+        'qid': answer.questionId,
+        'message': gpt_generated_message,  # Inserting the complete GPT-generated message
+        'mid': mid
+        })
+
     @staticmethod
     async def get_chat_history(question_id: UUID, user_id: UUID):
         chat_history = []
 
-        # TODO: need to modify this for chat history
-
-        # params = {'qid': question_id, 'uid': user_id}
-        # qas = await db.fetch_all(GET_CHAT_HISTORY, params)
-        # for qa in qas:
-        #     user_chat = qa.answer
-        #     gpt_chat = qa.grade
-        #     chat_history.append({"from": "user", "text": user_chat})
-        #     chat_history.append({"from": "computer", "text": gpt_chat})
-        
+        params = {'qid': question_id, 'uid': user_id}
+        messages = await db.fetch_all(GET_CHAT_HISTORY, params)
+        if(len(messages) > 0):
+            for message in messages:
+                gptParams = {'mid': message.message_id} 
+                gptMessage = await db.fetch_one(GET_COMPUTER_HISTORY, gptParams)
+                chat_history.append({"from": "user", "text": message.message})
+                chat_history.append({"from": "computer", "text": gptMessage.message})
+            
         return chat_history
 
 
 """QUERIES"""
 
 GET_CHAT_HISTORY = """
-    SELECT answer, grade
-    FROM content.question_answer
+    SELECT message_id, message
+    FROM content.messages
     WHERE question_id = :qid AND user_id = :uid
-    ORDER BY insert_time DESC
 """
+GET_COMPUTER_HISTORY = """
+    SELECT message
+    FROM content.gptmessages
+    WHERE m_id = :mid
+"""
+
 
 GET_CASES = """
     SELECT 
@@ -154,4 +179,17 @@ INSERT_NEW_QUESTION = """
     (case_id, title, description)
     VALUES (:case_id, :title, :description )
     RETURNING question_id
+"""
+
+INSERT_MESSAGE = """
+    INSERT INTO content.messages
+    (question_id, user_id, message)
+    VALUES (:qid, :uid, :message)
+    RETURNING message_id
+"""
+
+INSERT_GPT_MESSAGE = """
+    INSERT INTO content.gptmessages
+    (question_id, message, m_id)
+    VALUES (:qid, :message, :mid)
 """

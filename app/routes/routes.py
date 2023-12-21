@@ -33,18 +33,25 @@ async def post_question_answer(answer: Answer):
     return StreamingResponse(
         Case.grade_answer(answer), media_type='text/event-stream'
     )
+@content_router.post('/conversation')
+async def post_convo(answer: Answer):
+    return StreamingResponse(
+        Case.conversation(answer), media_type='text/event-stream'
+    )
 
 @content_router.get('/question/{question_id}/chat')
-async def get_chat_history(
-    question_id: UUID, profile: UserProfile = Depends(get_profile)
-):
+async def get_chat_history(question_id: UUID, profile: UserProfile = Depends(get_profile)):
     return await Case.get_chat_history(question_id, profile.user_id)
+
+
 
 # @content_router.get("/question/chat/audio")
 # async def get_chat_audio(): 
 #     return StreamingResponse(
 #         GPT.stream_tts_audio("sample input text"), media_type="audio/mpeg"
 #     )
+
+
 
 # TTS - text to speech
 @content_router.post("/chat/audio")
