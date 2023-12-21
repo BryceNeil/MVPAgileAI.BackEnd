@@ -24,6 +24,13 @@ INITIAL_PROMPT = """
 
 """
 
+INITIAL_CONVO_PROMPT = """
+    You are a highly skilled and detail-orientied management consultant who has worked at top firms such as McKinsey, Bain, and BCG.
+    You have been given the following case {{CASE_DETAILS}}.
+    The following question is proposed to your team: {{QUESTION}}.
+    Your teamate has asked you to assist them working on this case and question. Unless a direct question about the case or question is posed, simply offer brief small talk. They have said to you: {{MESSAGE}}
+"""
+
 client = AsyncOpenAI(api_key=SECRETS.OPENAI_KEY)
 
 class GPT:
@@ -67,7 +74,7 @@ class GPT:
         try:
             # Generate the prompt - this is where DATA SCIENCE ERROR COMES FROM
             
-            prompt = await cls.get_prompt(answer, question_id)
+            prompt = await cls.get_convo_prompt(answer, question_id)
             print("Prompt: ", prompt)
 
 
@@ -156,6 +163,17 @@ class GPT:
         print("DEBUG 4 Tran")
         return transcript["data"]["text"]
 
+    async def get_convo_prompt(message: str, question_id: UUID) -> str:
+        case_question_info = await db.fetch_one(
+            GET_CASE_QUESTION_INFO, {'q_id': question_id}
+        )
+        return (
+            INITIAL_CONVO_PROMPT
+            .replace("{{MESSAGE}}", message)
+            .replace("{{CASE_DETAILS}}", case_question_info.case_desc)
+            .replace("{{QUESTION}}", case_question_info.question)
+        )
+    
 
 
     async def get_prompt(answer: str, question_id: UUID) -> str:
