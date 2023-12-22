@@ -40,6 +40,14 @@ class User:
             msg = 'Incorrect Password'
             raise HTTPException(status_code=404, detail=msg)
 
+    @classmethod
+    async def addCaseId(case_id, user_id):
+        print("This is being run")
+        params = {'case_id': case_id, 'user_id': user_id}
+        print(params)
+        await db.execute(INSERT_CASE_ID, params)
+
+
 
 INSERT_USER = """
     INSERT INTO individual.account 
@@ -51,4 +59,11 @@ GET_USER = """
     SELECT user_id, email, password
     FROM individual.account
     WHERE email = :email
+"""
+
+
+INSERT_CASE_ID = """
+    UPDATE individual.account
+    SET past_cases = array_append(past_cases, :case_id)
+    WHERE user_id = :user_id;
 """
