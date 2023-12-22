@@ -1,15 +1,15 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, Form, UploadFile, File, HTTPException
+from app.data import db
+from fastapi import APIRouter, Depends, Form, UploadFile, File, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from fastapi.requests import Request
-
+from typing import Optional
 from app.misc.utils import get_profile, validate_token, User as UserProfile
 from app.models.Case import Case 
 from app.models.GPT import GPT
-from app.models.User import User 
+from app.models.User import User
 from app.schemas.Case import Answer
 from app.schemas.User import UserLoginData
-
 
 """CONTENT ROUTES"""
 
@@ -87,10 +87,14 @@ async def create_case(request: Request):
 @content_router.post("/enter/case")
 async def enter_case(request: Request):
     try:
-        case_data = await request.json()  # Retrieve JSON data from the request body
+        data = await request.json()  # Retrieve JSON data from the request body
+
         # print("Received case data:", case_data.get("jobTitle"))
-        resp_data = await Case.enter_new_case(case_data)
-        print(resp_data)
+        user_id = UUID(data["userId"])
+        case_data = data["caseData"]
+        resp_data = await Case.enter_new_case(case_data, user_id)
+        
+            
         return resp_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -116,3 +120,9 @@ async def create_user(login_info: UserLoginData):
 
 
 """MISC ROUTES"""
+
+INSERT_CASE_ID = """
+    UPDATE individual.account
+    SET past_cases = array_append(past_cases, :case_id)
+    WHERE user_id = :user_id;
+ """

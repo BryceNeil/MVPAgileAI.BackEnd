@@ -41,20 +41,20 @@ class Case:
             )
         ]
     
-    async def enter_new_case(caseData):
+    async def enter_new_case(caseData, user_id):
         try: 
             params = {'title': caseData.get("jobTitle"), 'description': caseData.get("scenario")}
             cResult = await db.execute(INSERT_NEW_CASE, params)
             questions = caseData.get("questions")
-            print("Before For")
+
             qResult = []
             for question in questions:
-                print("After For")
-                
                 paramsQuestion = {'case_id': cResult, 'title': question.get("question"), 'description': ''}
- 
                 qResult.append(await db.execute(INSERT_NEW_QUESTION, paramsQuestion))
-            
+        
+            params = {'case_id': cResult, 'user_id': user_id}
+            await db.execute(INSERT_CASE_ID, params)
+
             return cResult, qResult
         except Exception as exc:
             msg, code = 'Something went wrong creating a user', 400
@@ -193,3 +193,9 @@ INSERT_GPT_MESSAGE = """
     (question_id, message, m_id)
     VALUES (:qid, :message, :mid)
 """
+
+INSERT_CASE_ID = """
+    UPDATE individual.account
+    SET past_cases = array_append(past_cases, :case_id)
+    WHERE user_id = :user_id;
+ """
