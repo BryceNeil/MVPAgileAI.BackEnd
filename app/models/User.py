@@ -41,11 +41,9 @@ class User:
             raise HTTPException(status_code=404, detail=msg)
 
     @classmethod
-    async def addCaseId(case_id, user_id):
-        print("This is being run")
-        params = {'case_id': case_id, 'user_id': user_id}
-        print(params)
-        await db.execute(INSERT_CASE_ID, params)
+    async def get_case(user_id):
+        params = {'user_id': user_id}
+        return await db.execute(GET_CASE, params)
 
 
 
@@ -62,8 +60,8 @@ GET_USER = """
 """
 
 
-INSERT_CASE_ID = """
-    UPDATE individual.account
-    SET past_cases = array_append(past_cases, :case_id)
+GET_CASE = """
+    SELECT past_cases[1] AS first_case
+    FROM individual.account
     WHERE user_id = :user_id;
 """

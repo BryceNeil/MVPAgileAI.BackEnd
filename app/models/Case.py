@@ -46,11 +46,19 @@ class Case:
             params = {'title': caseData.get("jobTitle"), 'description': caseData.get("scenario")}
             cResult = await db.execute(INSERT_NEW_CASE, params)
             questions = caseData.get("questions")
-
+            
             qResult = []
+            i=0
+            
             for question in questions:
-                paramsQuestion = {'case_id': cResult, 'title': question.get("question"), 'description': ''}
+                framework = question.get("framework")
+                paramsQuestion = {'case_id': cResult, 'question': question.get("question"), 'details': '', 'questionnumber' : question.get('questionNumber'), 'difficultylevel': question.get("difficultyLevel"), 'fr_overview': framework.get('overview')}
                 qResult.append(await db.execute(INSERT_NEW_QUESTION, paramsQuestion))
+                
+                for step in framework.get('steps'):
+                    paramsFramework = {'step_number': int(step.get('stepNumber')), 'description': step.get('description'), 'details': step.get('details'), 'question_id': qResult[i]}
+                    await db.execute(INSERT_FRAMEWORK, paramsFramework)
+                i+=1
         
             params = {'case_id': cResult, 'user_id': user_id}
             await db.execute(INSERT_CASE_ID, params)
@@ -99,6 +107,14 @@ class Case:
         'mid': mid
         })
 
+    async def retrieve_case(userId):
+        params = {'user_id': userId}
+        cidResult = await db.fetch_one(RETRIEVE_CASE_ID, params)
+        caseId = cidResult['latest_case_id']
+        caseParams = {'case_id': caseId}
+        result = await db.fetch_all(RETRIEVE_CASE, caseParams)
+        return result
+
     @staticmethod
     async def get_chat_history(question_id: UUID, user_id: UUID):
         chat_history = []
@@ -110,7 +126,8 @@ class Case:
                 gptParams = {'mid': message.message_id} 
                 gptMessage = await db.fetch_one(GET_COMPUTER_HISTORY, gptParams)
                 chat_history.append({"from": "user", "text": message.message})
-                chat_history.append({"from": "computer", "text": gptMessage.message})
+                if(gptMessage):
+                    chat_history.append({"from": "computer", "text": gptMessage.message})
             
         return chat_history
 
@@ -176,8 +193,8 @@ INSERT_NEW_CASE = """
 
 INSERT_NEW_QUESTION = """
     INSERT INTO content.question
-    (case_id, title, description)
-    VALUES (:case_id, :title, :description )
+    (case_id, question, details, questionnumber, difficultylevel, fr_overview)
+    VALUES (:case_id, :question, :details, :questionnumber, :difficultylevel, :fr_overview)
     RETURNING question_id
 """
 
@@ -199,3 +216,30 @@ INSERT_CASE_ID = """
     SET past_cases = array_append(past_cases, :case_id)
     WHERE user_id = :user_id;
  """
+
+RETRIEVE_CASE_ID = """
+    SELECT past_cases[array_length(past_cases, 1)] AS latest_case_id
+    FROM individual.account
+    WHERE user_id = :user_id;
+"""
+
+RETRIEVE_CASE ="""
+    SELECT
+        c.*,
+        q.*,
+        f.*
+    FROM
+        content.case c
+    LEFT JOIN
+        content.question q ON c.case_id = q.case_id
+    LEFT JOIN
+        content.framework f ON q.question_id = f.question_id
+    WHERE
+        c.case_id = :case_id;
+"""
+
+INSERT_FRAMEWORK = """
+    INSERT INTO content.framework
+    (step_number, description, details, question_id)
+    VALUES (:step_number, :description, :details, :question_id)
+"""

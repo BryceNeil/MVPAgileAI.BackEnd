@@ -43,6 +43,10 @@ async def post_convo(answer: Answer):
 async def get_chat_history(question_id: UUID, profile: UserProfile = Depends(get_profile)):
     return await Case.get_chat_history(question_id, profile.user_id)
 
+@content_router.get('/getcase')
+async def get_case(userId: UUID):
+    print("this is running")
+    return await User.get_Case(userId)
 
 
 # @content_router.get("/question/chat/audio")
@@ -98,7 +102,20 @@ async def enter_case(request: Request):
         return resp_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+@content_router.post("/find/case")
+async def enter_case(request: Request):
+    try:
+        user = await request.json()  # Retrieve JSON data from the request body
+
+        # print("Received case data:", case_data.get("jobTitle"))
+        print(user)
+        user_id = UUID(user)
+        resp_data = await Case.retrieve_case(user_id)
+
+        return resp_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 """AUTH ROUTES"""
 auth_router = APIRouter(prefix="/api/auth")
