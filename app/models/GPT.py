@@ -194,7 +194,7 @@ class GPT:
 GET_CASE_QUESTION_INFO = """
     SELECT 
     C.description AS case_desc,
-    Q.title AS question
+    Q.question AS question
     FROM content.case AS C
     JOIN content.question AS Q
     ON Q.case_id = C.case_id
