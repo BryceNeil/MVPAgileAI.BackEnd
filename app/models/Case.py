@@ -56,7 +56,7 @@ class Case:
                 qResult.append(await db.execute(INSERT_NEW_QUESTION, paramsQuestion))
                 
                 for step in framework.get('steps'):
-                    paramsFramework = {'step_number': int(step.get('stepNumber')), 'description': step.get('description'), 'details': step.get('details'), 'question_id': qResult[i]}
+                    paramsFramework = {'step_number': int(step.get('stepNumber')), 'frame': step.get('description'), 'details': step.get('details'), 'question_id': qResult[i]}
                     await db.execute(INSERT_FRAMEWORK, paramsFramework)
                 i+=1
         
@@ -240,6 +240,6 @@ RETRIEVE_CASE ="""
 
 INSERT_FRAMEWORK = """
     INSERT INTO content.framework
-    (step_number, description, details, question_id)
-    VALUES (:step_number, :description, :details, :question_id)
+    (step_number, frame, details, question_id)
+    VALUES (:step_number, :frame, :details, :question_id)
 """
