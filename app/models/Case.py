@@ -52,12 +52,18 @@ class Case:
             
             for question in questions:
                 framework = question.get("framework")
+                rubric = question.get("rubric")
+
                 paramsQuestion = {'case_id': cResult, 'question': question.get("question"), 'details': '', 'questionnumber' : question.get('questionNumber'), 'difficultylevel': question.get("difficultyLevel"), 'fr_overview': framework.get('overview')}
                 qResult.append(await db.execute(INSERT_NEW_QUESTION, paramsQuestion))
                 
                 for step in framework.get('steps'):
                     paramsFramework = {'step_number': int(step.get('stepNumber')), 'frame': step.get('description'), 'details': step.get('details'), 'question_id': qResult[i]}
                     await db.execute(INSERT_FRAMEWORK, paramsFramework)
+
+                for criteria in rubric:
+                    paramsRubric = {'criterion': criteria.get("criterion"), 'specification': criteria.get("description"), 'weight': criteria.get("weight"), 'question_id': qResult[i]}
+                    await db.execute(INSERT_RUBRIC, paramsRubric)
                 i+=1
         
             params = {'case_id': cResult, 'user_id': user_id}
@@ -223,23 +229,108 @@ RETRIEVE_CASE_ID = """
     WHERE user_id = :user_id;
 """
 
-RETRIEVE_CASE ="""
+RETRIEVE_CASE = """
     SELECT
-        c.*,
-        q.*,
-        f.*
+        c.case_id,
+        c.title,
+        c.description,
+        ARRAY_AGG(q.question_id) AS question_ids,
+        ARRAY_AGG(q.question) AS questions,
+        ARRAY_AGG(q.difficultylevel) AS difficulty_levels,
+        ARRAY_AGG(q.fr_overview) AS fr_overviews, -- Include the fr_overview field
+        f.steps AS framework_steps,
+        r.criteria AS rubric_criteria
     FROM
         content.case c
-    LEFT JOIN
-        content.question q ON c.case_id = q.case_id
-    LEFT JOIN
-        content.framework f ON q.question_id = f.question_id
+    LEFT JOIN (
+        SELECT
+            case_id,
+            question_id,
+            question,
+            difficultylevel,
+            fr_overview -- Include fr_overview here
+        FROM
+            content.question
+    ) q ON c.case_id = q.case_id
+    LEFT JOIN (
+        SELECT
+            question_id,
+            ARRAY_AGG(ROW(step_number, frame, details)) AS steps
+        FROM
+            content.framework
+        GROUP BY
+            question_id
+    ) f ON q.question_id = f.question_id
+    LEFT JOIN (
+        SELECT
+            question_id,
+            ARRAY_AGG(ROW(criterion, specification, weight, grade)) AS criteria
+        FROM
+            content.rubric
+        GROUP BY
+            question_id
+    ) r ON q.question_id = r.question_id
     WHERE
-        c.case_id = :case_id;
+        c.case_id = :case_id
+    GROUP BY
+        c.case_id, c.title, c.description, f.steps, r.criteria;
 """
+
+# RETRIEVE_CASE ="""
+#     SELECT
+#     c.case_id,
+#     c.title,
+#     c.description,
+#     ARRAY_AGG(q.question_id) AS question_ids,
+#     ARRAY_AGG(q.question) AS questions,
+#     ARRAY_AGG(q.difficultylevel) AS difficulty_levels,
+#     ARRAY_AGG(q.fr_overview) AS fr_overviews, -- Include the fr_overview field
+#     ARRAY_AGG(f.steps) AS framework_steps,
+#     ARRAY_AGG(r.criteria) AS rubric_criteria
+#     FROM
+#         content.case c
+#     LEFT JOIN (
+#         SELECT
+#             case_id,
+#             question_id,
+#             question,
+#             difficultylevel,
+#             fr_overview -- Include fr_overview here
+#         FROM
+#             content.question
+#     ) q ON c.case_id = q.case_id
+#     LEFT JOIN (
+#         SELECT
+#             question_id,
+#             ARRAY_AGG(step_number || '. ' || frame || ' - ' || details) AS steps
+#         FROM
+#             content.framework
+#         GROUP BY
+#             question_id
+#     ) f ON q.question_id = f.question_id
+#     LEFT JOIN (
+#         SELECT
+#             question_id,
+#             ARRAY_AGG(criterion || ': ' || specification || ' (Weight: ' || weight || ')') AS criteria
+#         FROM
+#             content.rubric
+#         GROUP BY
+#             question_id
+#     ) r ON q.question_id = r.question_id
+#     WHERE
+#         c.case_id = :case_id
+#     GROUP BY
+#         c.case_id, c.title, c.description;
+# """
 
 INSERT_FRAMEWORK = """
     INSERT INTO content.framework
     (step_number, frame, details, question_id)
     VALUES (:step_number, :frame, :details, :question_id)
+"""
+
+INSERT_RUBRIC = """
+    INSERT INTO content.rubric
+    (criterion, specification, weight, question_id)
+    VALUES (:criterion, :specification, :weight, :question_id)
 """
