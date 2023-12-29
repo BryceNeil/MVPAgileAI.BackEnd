@@ -16,23 +16,26 @@ from pydub import AudioSegment
 from app.data.db import db
 from app.misc.constants import SECRETS, GPT_TEMPERATURE, GPT_MODEL
 
-# need to feed in the case and given question here. 
-INITIAL_PROMPT = """
-    You are a highly knowledgable and helpful assistant to a person applying for a position at a top firm. He is trying to answer a question relating to a case given to him by a recruiter of a top firm interviewing him for a position.
+# # need to feed in the case and given question here. 
+# INITIAL_PROMPT = """
+#     You are a highly knowledgable and helpful assistant to a person applying for a position at a top firm. He is trying to answer a question relating to a case given to him by a recruiter of a top firm interviewing him for a position.
+#     He has been given the following case {{CASE_DETAILS}}.
+#     The following question is asked of him: {{QUESTION}}.
+#     While the person you are assisting works towards his answer, he will converse with you to assist him along the way. This means you should keep your answers brief, a maximum of four sentences, and only 
+#     providing hints or small instructions. 
+#     He inquires the following: 
+#     {{USER_ANSWER}}
+
+# """
+
+INITIAL_CONVO_PROMPT = """
+     You are a highly knowledgable and helpful assistant to a person applying for a position at a top firm. He is trying to answer a question relating to a case given to him by a recruiter of a top firm interviewing him for a position.
     He has been given the following case {{CASE_DETAILS}}.
     The following question is asked of him: {{QUESTION}}.
     While the person you are assisting works towards his answer, he will converse with you to assist him along the way. This means you should keep your answers brief, a maximum of four sentences, and only 
     providing hints or small instructions. 
     He inquires the following: 
     {{USER_ANSWER}}
-
-"""
-
-INITIAL_CONVO_PROMPT = """
-    You are a highly skilled and detail-orientied management consultant who has worked at top firms such as McKinsey, Bain, and BCG.
-    You have been given the following case {{CASE_DETAILS}}.
-    The following question is proposed to your team: {{QUESTION}}.
-    Your teamate has asked you to assist them working on this case and question. Unless a direct question about the case or question is posed, simply offer brief small talk. They have said to you: {{MESSAGE}}
 """
 
 EVAL_PROMPT = """
@@ -244,7 +247,7 @@ class GPT:
             GET_CASE_QUESTION_INFO, {'q_id': question_id}
         )
         return (
-            INITIAL_PROMPT
+            INITIAL_CONVO_PROMPT
             .replace("{{USER_ANSWER}}", answer)
             .replace("{{CASE_DETAILS}}", case_question_info.case_desc)
             .replace("{{QUESTION}}", case_question_info.question)
