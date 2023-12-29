@@ -1,4 +1,5 @@
 import asyncio
+import json
 import httpx
 
 import io
@@ -17,10 +18,13 @@ from app.misc.constants import SECRETS, GPT_TEMPERATURE, GPT_MODEL
 
 # need to feed in the case and given question here. 
 INITIAL_PROMPT = """
-    You are a highly skilled and detail-orientied management consultant who has worked at top firms such as McKinsey, Bain, and BCG.
-    You have been given the following case {{CASE_DETAILS}}.
-    The following question is asked of your team: {{QUESTION}}.
-    This answer is proposed: {{USER_ANSWER}}
+    You are a highly knowledgable and helpful assistant to a person applying for a position at a top firm. He is trying to answer a question relating to a case given to him by a recruiter of a top firm interviewing him for a position.
+    He has been given the following case {{CASE_DETAILS}}.
+    The following question is asked of him: {{QUESTION}}.
+    While the person you are assisting works towards his answer, he will converse with you to assist him along the way. This means you should keep your answers brief, a maximum of four sentences, and only 
+    providing hints or small instructions. 
+    He inquires the following: 
+    {{USER_ANSWER}}
 
 """
 
@@ -29,6 +33,26 @@ INITIAL_CONVO_PROMPT = """
     You have been given the following case {{CASE_DETAILS}}.
     The following question is proposed to your team: {{QUESTION}}.
     Your teamate has asked you to assist them working on this case and question. Unless a direct question about the case or question is posed, simply offer brief small talk. They have said to you: {{MESSAGE}}
+"""
+
+EVAL_PROMPT = """
+    You are a harsh but fair professor grading a students response to a question relating to a case you've given them. The case scenario you've challenged them with is: 
+    {{SCENARIO}} 
+    and the question they are answering is
+    {{QUESTION}}
+    You need to evaluate the answer based on three criteria. The first of which is 
+    {{CRITERIA_ONE}} 
+    and you are to score the answer on weather or not the student {{DESCRIPTION_ONE}}.
+    The seond of which is
+    {{CRITERIA_TWO}}
+    and you are to score this answer on weather or not the student {{DESCRIPTION_TWO}}.
+    The final criterion is 
+    {{CRITERIA_THREE}}
+    and this is to be evaluated on weather or not the student {{DESCRIPTION_THREE}}.
+    Please be thorough with you grading and not afraid to give low or zero grades if a criteria is not met or addressed at all.
+    The answer the student gave to the question is:    
+    {{USER_ANSWER}}.
+    For each of the three criteria, provide a specific grade out of 100 and return only the three grades as an array in a structured JSON format with one element: grades: [x,y,z]. Do not be afraid to give a zero if answer is blank or poorly crafted.
 """
 
 client = AsyncOpenAI(api_key=SECRETS.OPENAI_KEY)
@@ -107,17 +131,41 @@ class GPT:
         except Exception as e:
             print(f"GPT Error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+    
+    @classmethod
+    async def evaluate(cls, answer, userId, questionId, rubric, question, case):
+        try:
+            print(rubric)
+            prompt = await cls.get_eval_prompt(answer, rubric, question, case)
+            response = await client.chat.completions.create(
+                model=GPT_MODEL,
+                response_format={"type": "json_object"},
+                messages = [
+                    {
+                        "role": "system",
+                        "content": "You are an evaluator designed to output structured three-element array of grades"
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+            grades_vals = json.loads(response.choices[0].message.content)['grades']
+            i=0
+            for grade in grades_vals:
+                params= {'grade': grade, 'question_id': questionId, 'criterion': rubric[i]['criterion']}
+                print(params)
+                await db.execute(INSERT_GRADE, params)
+                i+=1
+            paramsAnswer = {'question_id': questionId, 'user_id': userId, 'answer': answer}
+            await db.execute(INSERT_ANSWER, paramsAnswer)
+            return response.choices[0].message.content
 
-
-        # The code block below is useful for debugging the Frontend. It provides
-        # A streamed response similar to the type that would be seen from the OpenAI call
-        # Comment out the below code when you uncomment the above
-
-        # t = ['really long text', ' really long text', ' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text',' really long text']
-        # open_ai_stream = (o for o in t + t + t + t + t + t + t)
-        # for chunk in open_ai_stream:
-        #     await asyncio.sleep(0.25)
-        #     yield chunk
+        except Exception as e:
+            print(f"Error in evaluate method: {e}")
+            # Handle the error as needed, e.g., log the error, raise an HTTPException, etc.
+            raise HTTPException(status_code=500, detail=str(e))
 
 
     # Text to speech
@@ -174,6 +222,21 @@ class GPT:
             .replace("{{QUESTION}}", case_question_info.question)
         )
     
+    async def get_eval_prompt(answer: str, rubric, question, scenario) -> str:
+        criteria = [item['criterion'] for item in rubric]
+        descriptions = [item['description'] for item in rubric]
+        return (
+            EVAL_PROMPT
+            .replace("{{SCENARIO}}", scenario)
+            .replace("{{QUESTION}}", question)
+            .replace("{{CRITERIA_ONE}}", criteria[0])
+            .replace("{{DESCRIPTION_ONE}}", descriptions[0])
+            .replace("{{CRITERIA_TWO}}", criteria[1])
+            .replace("{{DESCRIPTION_TWO}}", descriptions[1])
+            .replace("{{CRITERIA_THREE}}", criteria[2])
+            .replace("{{DESCRIPTION_THREE}}", descriptions[2])
+            .replace("{{USER_ANSWER}}", answer)
+            )
 
 
     async def get_prompt(answer: str, question_id: UUID) -> str:
@@ -199,4 +262,17 @@ GET_CASE_QUESTION_INFO = """
     JOIN content.question AS Q
     ON Q.case_id = C.case_id
     WHERE Q.question_id = :q_id
+"""
+
+INSERT_GRADE = """
+    UPDATE content.rubric
+    SET grade = :grade
+    WHERE question_id = :question_id AND criterion = :criterion;
+
+"""
+
+INSERT_ANSWER = """
+    INSERT INTO content.question_answer
+    (question_id, user_id, answer)
+    VALUES (:question_id, :user_id, :answer)
 """

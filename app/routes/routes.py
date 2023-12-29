@@ -109,13 +109,29 @@ async def enter_case(request: Request):
         user = await request.json()  # Retrieve JSON data from the request body
 
         # print("Received case data:", case_data.get("jobTitle"))
-        print(user)
         user_id = UUID(user)
         resp_data = await Case.retrieve_case(user_id)
 
         return resp_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@content_router.post("/evaluate")
+async def evaluate(request: Request):
+    try:
+        request = await request.json()  # Retrieve JSON data from the request body
+        answer = request['answer']
+        rubric = request['rubric']
+        userId = request['userId']
+        questionId = request['questionId']
+        question = request['question']
+        scenario = request['caseDesc']
+        grades = await GPT.evaluate(answer, userId, questionId, rubric, question, scenario)
+       
+        return grades
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 """AUTH ROUTES"""
 auth_router = APIRouter(prefix="/api/auth")
@@ -143,3 +159,4 @@ INSERT_CASE_ID = """
     SET past_cases = array_append(past_cases, :case_id)
     WHERE user_id = :user_id;
  """
+
