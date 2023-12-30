@@ -32,15 +32,15 @@ INITIAL_CONVO_PROMPT = """
     You are a highly knowledgable and helpful assistant to a person applying for a position at a top firm. He is trying to answer a question relating to a case given to him by a recruiter of a top firm interviewing him for a position.
     He has been given the following case {{CASE_DETAILS}}.
     The following question is asked of him: {{QUESTION}}.
-    While the person you are assisting works towards his answer, he will converse with you to assist him along the way. This means you should keep your answers brief, a maximum of four sentences but less is ideal, and only 
+    While the person you are assisting works towards his answer, he will converse with you to assist him along the way. This means you should keep your answers brief, a maximum of three sentences but less is ideal, and only 
     providing hints or small instructions when directly asked.
-    If not directly asked, provide short relevant small talk as if you were a friendly tutor 
+    If not directly asked, provide short relevant small talk as if you were a friendly tutor, remind them you are there to assist.
     He inquires the following: 
-    {{USER_ANSWER}}
+    {{MESSAGE}}}
 """
 
 EVAL_PROMPT = """
-    You are a harsh but fair professor grading a students response to a question relating to a case you've given them. The case scenario you've challenged them with is: 
+    You are a harsh professor grading a students response to a question relating to a case you've given them. The case scenario you've challenged them with is: 
     {{SCENARIO}} 
     and the question they are answering is
     {{QUESTION}}
@@ -53,7 +53,7 @@ EVAL_PROMPT = """
     The final criterion is 
     {{CRITERIA_THREE}}
     and this is to be evaluated on weather or not the student {{DESCRIPTION_THREE}}.
-    Please be thorough with you grading and not afraid to give low or zero grades if a criteria is not met or addressed at all.
+    Assume all answers begin at zero and remain there unless the specific criteria is met. Grade them on all numbers on the set 0 to 100.
     The answer the student gave to the question is:    
     {{USER_ANSWER}}.
     For each of the three criteria, provide a specific grade out of 100 and return only the three grades as an array in a structured JSON format with one element: grades: [x,y,z]. Do not be afraid to give a zero if answer is blank or poorly crafted.
@@ -221,9 +221,9 @@ class GPT:
         )
         return (
             INITIAL_CONVO_PROMPT
-            .replace("{{MESSAGE}}", message)
             .replace("{{CASE_DETAILS}}", case_question_info.case_desc)
             .replace("{{QUESTION}}", case_question_info.question)
+            .replace("{{MESSAGE}}", message)
         )
     
     async def get_eval_prompt(answer: str, rubric, question, scenario) -> str:
