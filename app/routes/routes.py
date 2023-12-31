@@ -104,7 +104,7 @@ async def enter_case(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @content_router.post("/find/case")
-async def enter_case(request: Request):
+async def find_case(request: Request):
     try:
         user = await request.json()  # Retrieve JSON data from the request body
 
@@ -115,7 +115,21 @@ async def enter_case(request: Request):
         return resp_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+@content_router.post("/find/casebyid")
+async def find_case_by_id(request: Request):
+    try:
+        request = await request.json()  # Retrieve JSON data from the request body
+        case = request['caseId']
+        userId = request['userId']
+        case_id = UUID(case)
+        user_id = UUID(userId)
+        resp_data = await Case.retrieve_case_with_id(case_id, user_id)
+
+        return resp_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @content_router.post("/evaluate")
 async def evaluate(request: Request):
     try:
@@ -132,6 +146,21 @@ async def evaluate(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@content_router.post("/getPast")
+async def getPastCases(request: Request):
+    try:
+        request = await request.json()  # Retrieve JSON data from the request body
+        userId = request['user_id']
+        caseIds = await User.get_case_ids(userId)
+        if(caseIds):
+            titles = await Case.getTitles(caseIds)
+            return titles, caseIds
+        else:
+            return []
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 """AUTH ROUTES"""
 auth_router = APIRouter(prefix="/api/auth")

@@ -75,11 +75,11 @@ class GPT:
                 f"'difficultyLevel', 'relevantSkills', 'rubric' (in the structure outlined below), and the 'framework' dictiionary (in the structure outlined below). "
                 f"Format the questions as 'questionNumber': 1, 'question': '<question_text>', "
                 f"'difficultyLevel': '<level>', 'relevantSkills': ['<skill1>', '<skill2>']."
-                f"- 'rubric': a list of grading criteria, each as a dictionary with 'criterion', 'description', "
-                f"and 'weight'.\n"
+                f"- 'rubric': a list of three grading criteria, each as a dictionary with 'criterion', 'description', "
+                f"and 'weight' as a decimal between 0 and 1 that sum to 1 accross the three.\n"
                 f"- 'framework': a dictionary with the following keys:\n"
                 f"  'overview': a brief description of the overall problem-solving approach,\n"
-                f"  'steps': a list of specific, ordered steps for approaching the problem, each step as a dictionary "
+                f"  'steps': a list of three specific, ordered steps for approaching the problem, each step as a dictionary "
                 f"with 'stepNumber', 'description', and 'details'.\n"
                 f"Ensure the scenario, questions, rubric, and framework are detailed, realistic, and aligned "
                 f"with real-world complexities."
@@ -92,6 +92,7 @@ class GPT:
                     {"role": "user", "content": prompt}    
                 ]
             )
+            print(response.choices[0].message.content)
             return response.choices[0].message.content
         except Exception as e:
             print(f"GPT Error: {e}")

@@ -113,6 +113,14 @@ class Case:
         'mid': mid
         })
 
+    async def retrieve_case_with_id(caseId, userId):
+        caseParams = {'case_id': caseId, 'user_id': userId}
+        await db.execute(SET_CURRENT, caseParams)
+        secondParams = {'case_id': caseId}
+        result = await db.fetch_all(RETRIEVE_CASE, secondParams)
+        return result
+
+
     async def retrieve_case(userId):
         params = {'user_id': userId}
         cidResult = await db.fetch_one(RETRIEVE_CASE_ID, params)
@@ -120,6 +128,13 @@ class Case:
         caseParams = {'case_id': caseId}
         result = await db.fetch_all(RETRIEVE_CASE, caseParams)
         return result
+
+    async def getTitles(caseIds):
+        titles = []
+        for caseId in caseIds:
+            params={'case_id': caseId}
+            titles.append(await db.execute(GET_TITLES, params))
+        return titles
 
     @staticmethod
     async def get_chat_history(question_id: UUID, user_id: UUID):
@@ -183,7 +198,12 @@ INSERT_Q_ANSWER = """
     VALUES (:qid, :uid, :a)
     RETURNING pin
 """
+SET_CURRENT = """
+    UPDATE individual.account
+    SET current_case = :case_id
+    WHERE user_id = :user_id
 
+"""
 INSERT_Q_GRADE_INCREMENTAL = """
     UPDATE content.question_answer
     SET grade = COALESCE(grade || :g, :g)
@@ -219,12 +239,12 @@ INSERT_GPT_MESSAGE = """
 
 INSERT_CASE_ID = """
     UPDATE individual.account
-    SET past_cases = array_append(past_cases, :case_id)
+    SET past_cases = array_append(past_cases, :case_id), current_case = :case_id
     WHERE user_id = :user_id;
  """
 
 RETRIEVE_CASE_ID = """
-    SELECT past_cases[array_length(past_cases, 1)] AS latest_case_id
+    SELECT current_case AS latest_case_id
     FROM individual.account
     WHERE user_id = :user_id;
 """
@@ -276,52 +296,11 @@ RETRIEVE_CASE = """
         c.case_id, c.title, c.description, f.steps, r.criteria;
 """
 
-# RETRIEVE_CASE ="""
-#     SELECT
-#     c.case_id,
-#     c.title,
-#     c.description,
-#     ARRAY_AGG(q.question_id) AS question_ids,
-#     ARRAY_AGG(q.question) AS questions,
-#     ARRAY_AGG(q.difficultylevel) AS difficulty_levels,
-#     ARRAY_AGG(q.fr_overview) AS fr_overviews, -- Include the fr_overview field
-#     ARRAY_AGG(f.steps) AS framework_steps,
-#     ARRAY_AGG(r.criteria) AS rubric_criteria
-#     FROM
-#         content.case c
-#     LEFT JOIN (
-#         SELECT
-#             case_id,
-#             question_id,
-#             question,
-#             difficultylevel,
-#             fr_overview -- Include fr_overview here
-#         FROM
-#             content.question
-#     ) q ON c.case_id = q.case_id
-#     LEFT JOIN (
-#         SELECT
-#             question_id,
-#             ARRAY_AGG(step_number || '. ' || frame || ' - ' || details) AS steps
-#         FROM
-#             content.framework
-#         GROUP BY
-#             question_id
-#     ) f ON q.question_id = f.question_id
-#     LEFT JOIN (
-#         SELECT
-#             question_id,
-#             ARRAY_AGG(criterion || ': ' || specification || ' (Weight: ' || weight || ')') AS criteria
-#         FROM
-#             content.rubric
-#         GROUP BY
-#             question_id
-#     ) r ON q.question_id = r.question_id
-#     WHERE
-#         c.case_id = :case_id
-#     GROUP BY
-#         c.case_id, c.title, c.description;
-# """
+GET_TITLES = """
+    SELECT title 
+    FROM content.case
+    WHERE case_id = :case_id
+"""
 
 INSERT_FRAMEWORK = """
     INSERT INTO content.framework

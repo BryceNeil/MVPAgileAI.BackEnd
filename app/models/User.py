@@ -44,6 +44,12 @@ class User:
     async def get_case(user_id):
         params = {'user_id': user_id}
         return await db.execute(GET_CASE, params)
+    
+    async def get_case_ids(userId):
+        params = {'user_id': userId}
+        print(params)
+        return await db.execute(GET_CASE_IDS, params)
+
 
 
 
@@ -62,6 +68,12 @@ GET_USER = """
 
 GET_CASE = """
     SELECT past_cases[1] AS first_case
+    FROM individual.account
+    WHERE user_id = :user_id;
+"""
+
+GET_CASE_IDS = """
+    SELECT past_cases AS cases
     FROM individual.account
     WHERE user_id = :user_id;
 """
